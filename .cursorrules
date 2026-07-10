@@ -1,0 +1,42 @@
+# ArcPM — Cursor AI Rules
+
+## Project
+AI-powered program management tool for hardware product development (Signal Ring SR1).
+Stack: Next.js 14 App Router + Supabase + Anthropic Claude + Tailwind CSS.
+
+## Architecture
+- `app/` — Next.js pages and API routes (App Router)
+- `components/` — Shared React components
+- `lib/` — Supabase client, Anthropic client, TypeScript types, auth context, access control
+- `supabase/schema.sql` — Full DB schema, run in Supabase SQL editor
+
+## Key conventions
+- All pages are Client Components ('use client') unless they are pure server layouts
+- Auth is handled via `lib/AuthContext.tsx` (useAuth hook)
+- Role-based access via `lib/useAccess.ts` (useAccess hook)
+- 5 user roles: program_ops | npi | hw_quality | marketing | product
+- Active program is stored in AuthContext and passed to all API calls as `programId`
+- All AI calls go through `app/api/analyze/route.ts` → `lib/anthropic.ts`
+- Tailwind utility classes only — no separate CSS files except globals.css
+- Use `clsx` for conditional classnames
+- Badge classes: badge-blocker, badge-critical, badge-major, badge-minor, badge-go, badge-watch, badge-nogo
+- Button classes: btn-primary, btn-secondary
+- Card class: card
+- Input class: input-base
+
+## Pages still to build
+- None — all MVP pages are built. Next: wire Timeline/Risks/Launch/Cert forms to Supabase API routes.
+
+## Documentation
+- Project docs live in `docs/` — PRD, Tech Spec, Onboarding Guide, Project Tracker (.docx)
+- Source generator: `docs/generate-docs.js` — run `npm run docs:generate` after meaningful changes
+- Keep docs in sync when shipping features, changing architecture, or updating roadmap
+
+## DB tables
+programs, tracks, risk_items, launch_items, change_log, user_profiles
+All tables have program_id FK. RLS enabled — authenticated users can read all, write their own.
+
+## Environment variables needed
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+ANTHROPIC_API_KEY

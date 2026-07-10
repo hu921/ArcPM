@@ -1,0 +1,58 @@
+/* app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-accent: #7F77DD;
+    --color-accent-light: #EEEDFb;
+  }
+}
+
+@layer components {
+  .badge {
+    @apply inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+  .badge-blocker { @apply bg-rose-100 text-rose-700; }
+  .badge-critical { @apply bg-red-100 text-red-600; }
+  .badge-major    { @apply bg-amber-100 text-amber-700; }
+  .badge-minor    { @apply bg-green-100 text-green-700; }
+  .badge-norisk   { @apply bg-gray-100 text-gray-500 border border-gray-200; }
+  .badge-go       { @apply bg-green-100 text-green-700; }
+  .badge-watch    { @apply bg-amber-100 text-amber-700; }
+  .badge-nogo     { @apply bg-red-100 text-red-600; }
+  .badge-delay    { @apply bg-red-100 text-red-700 ring-1 ring-red-300; }
+  .badge-complete { @apply bg-gray-100 text-gray-500 line-through decoration-gray-400; }
+
+  .card {
+    @apply bg-white border border-gray-200 rounded-xl p-4;
+  }
+
+  .section-title {
+    @apply text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600
+           hover:bg-gray-100 hover:text-gray-900 cursor-pointer transition-colors;
+  }
+  .nav-item-active {
+    @apply bg-indigo-50 text-indigo-600 font-medium;
+  }
+
+  .input-base {
+    @apply w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm
+           focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white
+           text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200
+           text-gray-600 text-xs rounded-lg hover:bg-gray-50 transition-colors cursor-pointer;
+  }
+}
