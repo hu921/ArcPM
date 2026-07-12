@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
-import { DbTrack, localLaunchToDb, localRiskToDb, localTrackToDb } from './programData'
-import { LocalLaunchItem, LocalRiskItem, LocalTimelineTrack, LaunchItem, Program, ProgramComponent, ProgramTeamMember, ProgramWithMembership, RiskItem } from './types'
+import { DbTrack, localCertToDb, localLaunchToDb, localRiskToDb, localTrackToDb } from './programData'
+import { CertItem, LocalCertItem, LocalLaunchItem, LocalRiskItem, LocalTimelineTrack, LaunchItem, Program, ProgramComponent, ProgramTeamMember, ProgramWithMembership, RiskItem } from './types'
 
 export async function authFetch(input: RequestInfo, init: RequestInit = {}) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -238,6 +238,58 @@ export async function updateLaunchItemViaApi(
 
 export async function deleteLaunchItemViaApi(id: string): Promise<{ error: string | null }> {
   const res = await authFetch(`/api/launch-items?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) return { error: body.error ?? res.statusText }
+  return { error: null }
+}
+
+// ─── Certification items ─────────────────────────────────────────────────────
+
+export async function fetchCertItemsFromApi(programId: string): Promise<CertItem[]> {
+  const res = await authFetch(`/api/cert-items?programId=${encodeURIComponent(programId)}`)
+  if (!res.ok) return []
+  return res.json()
+}
+
+export async function createCertItemViaApi(
+  programId: string,
+  userId: string,
+  item: Omit<LocalCertItem, 'id'>,
+): Promise<{ data: CertItem | null; error: string | null }> {
+  const res = await authFetch('/api/cert-items', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(localCertToDb(item, programId, userId)),
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) return { data: null, error: body.error ?? res.statusText }
+  return { data: body as CertItem, error: null }
+}
+
+export async function updateCertItemViaApi(
+  id: string,
+  updates: Partial<{
+    name: string
+    level: string
+    status: string
+    target: string | null
+    owner: string | null
+    region: string
+    note: string | null
+  }>,
+): Promise<{ data: CertItem | null; error: string | null }> {
+  const res = await authFetch('/api/cert-items', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, ...updates }),
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) return { data: null, error: body.error ?? res.statusText }
+  return { data: body as CertItem, error: null }
+}
+
+export async function deleteCertItemViaApi(id: string): Promise<{ error: string | null }> {
+  const res = await authFetch(`/api/cert-items?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
   const body = await res.json().catch(() => ({}))
   if (!res.ok) return { error: body.error ?? res.statusText }
   return { error: null }

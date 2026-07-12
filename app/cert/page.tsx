@@ -4,8 +4,9 @@ import ItemFormCard, { EditButton } from '@/components/ItemFormCard'
 import EmptyState from '@/components/EmptyState'
 import { useAuth } from '@/lib/AuthContext'
 import { useAccess } from '@/lib/useAccess'
+import { createCertItemViaApi, deleteCertItemViaApi, updateCertItemViaApi } from '@/lib/api'
+import { useProgramCertItems } from '@/lib/useProgramCertItems'
 import { LocalCertItem, RiskLevel } from '@/lib/types'
-import { newId, useLocalProgramData } from '@/lib/useLocalProgramData'
 
 const LEVEL_META: Record<string, { cls: string; bg: string }> = {
   blocker:  { cls: 'badge badge-blocker',  bg: 'border-rose-200 bg-rose-50' },
@@ -73,7 +74,7 @@ function CertFormFields({
         </div>
         <div>
           <label className="text-xs text-gray-500 mb-1 block">Target date</label>
-          <input className="input-base" value={form.target} onChange={e => setForm(f => ({ ...f, target: e.target.value }))} />
+          <input type="date" className="input-base" value={form.target} onChange={e => setForm(f => ({ ...f, target: e.target.value }))} />
         </div>
         <div>
           <label className="text-xs text-gray-500 mb-1 block">Owner</label>
@@ -93,17 +94,16 @@ function CertFormFields({
 }
 
 export default function CertPage() {
-  const { activeProgram } = useAuth()
+  const { activeProgram, user } = useAuth()
   const { canViewPage, canViewAll, role } = useAccess()
   const canEditCert = canViewAll || role === 'npi' || canViewPage('cert')
-  const [certs, setCerts] = useLocalProgramData<LocalCertItem[]>(
-    'cert-items',
-    activeProgram?.id,
-    [],
-  )
+  const { items: certs, loading: listLoading, error: loadError, refresh } = useProgramCertItems(activeProgram?.id)
+
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [saveError, setSaveError] = useState('')
+  const [saving, setSaving] = useState(false)
 
   function openAdd() {
     setEditingId(null)
@@ -123,9 +123,18 @@ export default function CertPage() {
     setForm(EMPTY_FORM)
   }
 
-  function saveCert(e: FormEvent) {
+  async function saveCert(e: FormEvent) {
     e.preventDefault()
-    if (!form.name.trim()) return
+    if (!form.name.trim() || !activeProgram?.id) {
+      setSaveError('Enter a certification name.')
+      return
+    }
+    if (!user?.id) {
+      setSaveError('You must be signed in to save changes.')
+      return
+    }
+    setSaveError('')
+    setSaving(true)
     const payload = {
       name: form.name.trim(),
       level: form.level,
@@ -135,18 +144,44 @@ export default function CertPage() {
       region: form.region.trim() || 'Global',
       note: form.note.trim(),
     }
+
     if (editingId) {
-      setCerts(prev => prev.map(c => c.id === editingId ? { ...c, ...payload } : c))
+      const { error } = await updateCertItemViaApi(editingId, {
+        name: payload.name,
+        level: payload.level,
+        status: payload.status,
+        target: payload.target || null,
+        owner: payload.owner || null,
+        region: payload.region,
+        note: payload.note || null,
+      })
+      if (error) {
+        setSaveError(error)
+        setSaving(false)
+        return
+      }
     } else {
-      setCerts(prev => [...prev, { id: newId(), ...payload }])
+      const { error } = await createCertItemViaApi(activeProgram.id, user.id, payload)
+      if (error) {
+        setSaveError(error)
+        setSaving(false)
+        return
+      }
     }
+
+    await refresh()
+    setSaving(false)
     closeForm()
   }
 
-  function removeCert(id: string) {
+  async function removeCert(id: string) {
     if (editingId === id) closeForm()
-    setCerts(prev => prev.filter(c => c.id !== id))
+    const { error } = await deleteCertItemViaApi(id)
+    if (error) setSaveError(error)
+    else await refresh()
   }
+
+  const visibleCerts = editingId ? certs.filter(c => c.id !== editingId) : certs
 
   return (
     <div className="p-6 max-w-5xl mx-auto flex flex-col gap-6">
@@ -156,6 +191,9 @@ export default function CertPage() {
           <p className="text-sm text-gray-400">
             {activeProgram?.name ?? 'Your program'} · {certs.length} certification{certs.length === 1 ? '' : 's'} tracked
           </p>
+          {(loadError || saveError) && (
+            <p className="text-xs text-red-600 mt-1">{saveError || loadError}</p>
+          )}
         </div>
         {canEditCert && !showForm && (
           <button type="button" onClick={openAdd} className="btn-secondary">+ Add certification</button>
@@ -167,7 +205,7 @@ export default function CertPage() {
           title={editingId ? 'Edit certification' : 'Add certification'}
           onSubmit={saveCert}
           onCancel={closeForm}
-          submitLabel={editingId ? 'Save changes' : 'Add certification'}
+          submitLabel={saving ? 'Saving…' : editingId ? 'Save changes' : 'Add certification'}
         >
           <CertFormFields form={form} setForm={setForm} />
         </ItemFormCard>
@@ -192,7 +230,9 @@ export default function CertPage() {
         </div>
       </div>
 
-      {certs.length === 0 ? (
+      {listLoading && certs.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-8">Loading certifications…</p>
+      ) : certs.length === 0 ? (
         <EmptyState
           title="No certifications tracked"
           description="Add regulatory and compliance certifications to monitor lab testing, submissions, and grant status."
@@ -201,11 +241,10 @@ export default function CertPage() {
         />
       ) : (
         <div className="grid grid-cols-2 gap-4">
-          {certs.map(c => {
+          {visibleCerts.map(c => {
             const meta = LEVEL_META[c.level] ?? LEVEL_META.major
-            const isEditing = editingId === c.id
             return (
-              <div key={c.id} className={`rounded-xl border p-4 ${meta.bg} ${isEditing ? 'ring-2 ring-indigo-300' : ''}`}>
+              <div key={c.id} className={`rounded-xl border p-4 ${meta.bg}`}>
                 <div className="flex items-start justify-between mb-2 gap-2">
                   <div className="text-sm font-semibold text-gray-900">{c.name}</div>
                   <div className="flex items-center gap-2 shrink-0">

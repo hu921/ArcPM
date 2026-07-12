@@ -109,6 +109,22 @@ create table launch_items (
   updated_at  timestamptz default now()
 );
 
+-- ─── Certification items ────────────────────────────────────────────────────
+
+create table cert_items (
+  id          uuid primary key default gen_random_uuid(),
+  program_id  uuid references programs(id) on delete cascade not null,
+  name        text not null,
+  level       text not null default 'major',
+  status      text not null default 'Not started',
+  target      text,
+  owner       text,
+  region      text not null default 'Global',
+  note        text,
+  updated_by  uuid references user_profiles(id),
+  updated_at  timestamptz default now()
+);
+
 -- ─── Change log ───────────────────────────────────────────────────────────
 
 create table change_log (
@@ -176,6 +192,7 @@ alter table program_invites enable row level security;
 alter table tracks enable row level security;
 alter table risk_items enable row level security;
 alter table launch_items enable row level security;
+alter table cert_items enable row level security;
 alter table change_log enable row level security;
 
 create policy "Authenticated users can read profiles"
@@ -246,6 +263,18 @@ create policy "Members can insert launch items"
 
 create policy "Members can update launch items"
   on launch_items for update using (public.is_program_member(program_id));
+
+create policy "Members can read cert items"
+  on cert_items for select using (public.is_program_member(program_id));
+
+create policy "Members can insert cert items"
+  on cert_items for insert with check (public.is_program_member(program_id));
+
+create policy "Members can update cert items"
+  on cert_items for update using (public.is_program_member(program_id));
+
+create policy "Members can delete cert items"
+  on cert_items for delete using (public.is_program_member(program_id));
 
 create policy "Members can insert change log"
   on change_log for insert with check (public.is_program_member(program_id));

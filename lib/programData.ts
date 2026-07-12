@@ -1,5 +1,5 @@
 import { normalizeLaunchStatus } from './launchUtils'
-import { LocalLaunchItem, LocalRiskItem, LocalTimelineTrack, LaunchItem, RiskItem, TrackStatus } from './types'
+import { CertItem, LocalCertItem, LocalLaunchItem, LocalRiskItem, LocalTimelineTrack, LaunchItem, RiskItem, TrackStatus } from './types'
 
 export interface DbTrack {
   id: string
@@ -103,6 +103,37 @@ export function localLaunchToDb(
     label: item.label.trim(),
     status: item.status,
     owner: item.owner.trim() || null,
+    note: item.note.trim() || null,
+    updated_by: userId,
+  }
+}
+
+export function dbCertToLocal(row: CertItem): LocalCertItem {
+  return {
+    id: row.id,
+    name: row.name,
+    level: row.level,
+    status: row.status ?? 'Not started',
+    target: row.target?.slice(0, 10) ?? '',
+    owner: row.owner ?? '',
+    region: row.region ?? 'Global',
+    note: row.note ?? '',
+  }
+}
+
+export function localCertToDb(
+  item: Omit<LocalCertItem, 'id'>,
+  programId: string,
+  userId: string,
+) {
+  return {
+    program_id: programId,
+    name: item.name.trim(),
+    level: item.level,
+    status: item.status.trim() || 'Not started',
+    target: item.target.trim() || null,
+    owner: item.owner.trim() || null,
+    region: item.region.trim() || 'Global',
     note: item.note.trim() || null,
     updated_by: userId,
   }

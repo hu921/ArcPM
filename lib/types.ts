@@ -180,6 +180,22 @@ export interface LaunchItem {
   updated_at: string
 }
 
+// ─── Certification Items ────────────────────────────────────────────────────
+
+export interface CertItem {
+  id: string
+  program_id: string
+  name: string
+  level: RiskLevel
+  status: string
+  target: string | null
+  owner: string | null
+  region: string
+  note: string | null
+  updated_by: string | null
+  updated_at: string
+}
+
 // ─── Change Log ─────────────────────────────────────────────────────────────
 
 export interface ChangeLogEntry {
