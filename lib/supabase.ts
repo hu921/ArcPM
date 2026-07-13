@@ -1,5 +1,5 @@
 // lib/supabase.ts
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { createProgramForUser } from './programs/createProgram'
 import {
   Program,
@@ -35,9 +35,25 @@ function resolveSupabaseConfig() {
   )
 }
 
-const { url: supabaseUrl, key: supabaseAnonKey } = resolveSupabaseConfig()
+let _client: SupabaseClient | undefined
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+function getSupabaseClient(): SupabaseClient {
+  if (!_client) {
+    const { url, key } = resolveSupabaseConfig()
+    _client = createClient(url, key)
+  }
+  return _client
+}
+
+// Lazy so importing this module (e.g. during `next build`'s page-data
+// collection) doesn't require env vars — only calling a client method does.
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    const client = getSupabaseClient()
+    const value = Reflect.get(client, prop)
+    return typeof value === 'function' ? value.bind(client) : value
+  },
+})
 
 const APP_URL = typeof window !== 'undefined'
   ? window.location.origin
