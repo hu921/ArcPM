@@ -1,5 +1,5 @@
 // lib/supabase.ts
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { createProgramForUser } from './programs/createProgram'
 import {
   Program,
@@ -12,10 +12,48 @@ import {
   UserRole,
 } from './types'
 
-export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-)
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+
+function resolveSupabaseConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
+  const urlOk = /^https?:\/\//i.test(url)
+  const keyOk = key.length > 0 && !key.startsWith('your_')
+
+  if (urlOk && keyOk) return { url, key }
+
+  if (DEMO_MODE) {
+    // Valid-shaped placeholders so createClient does not throw during UI preview
+    return {
+      url: 'https://placeholder.supabase.co',
+      key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI4OTZ9.demo',
+    }
+  }
+
+  throw new Error(
+    'Invalid Supabase config. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local, or set NEXT_PUBLIC_DEMO_MODE=true.',
+  )
+}
+
+let _client: SupabaseClient | undefined
+
+function getSupabaseClient(): SupabaseClient {
+  if (!_client) {
+    const { url, key } = resolveSupabaseConfig()
+    _client = createClient(url, key)
+  }
+  return _client
+}
+
+// Lazy so importing this module (e.g. during `next build`'s page-data
+// collection) doesn't require env vars — only calling a client method does.
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    const client = getSupabaseClient()
+    const value = Reflect.get(client, prop)
+    return typeof value === 'function' ? value.bind(client) : value
+  },
+})
 
 const APP_URL = typeof window !== 'undefined'
   ? window.location.origin
