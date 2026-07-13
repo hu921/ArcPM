@@ -62,84 +62,14 @@ Add the same env vars in Vercel dashboard → Settings → Environment Variables
 
 ---
 
-## Supabase Schema (run this in SQL editor)
+## Supabase Schema
 
-```sql
--- Programs (top-level container)
-create table programs (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  launch_target date,
-  reporter text,
-  created_at timestamptz default now()
-);
+Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor. It creates `user_profiles`,
+`programs`, `program_members`, `program_invites`, `tracks`, `risk_items`, `launch_items`, and `change_log`,
+each with Row Level Security scoped to program membership (not an open "allow all" policy).
 
--- Tracks (Hardware, Firmware, Packaging, GTM, etc.)
-create table tracks (
-  id uuid primary key default gen_random_uuid(),
-  program_id uuid references programs(id) on delete cascade,
-  name text not null,
-  color text default '#7F77DD',
-  status text default 'on-track', -- on-track | at-risk | critical | blocker
-  start_date date,
-  end_date date,
-  created_at timestamptz default now()
-);
-
--- Risk items (from build status reports)
-create table risk_items (
-  id uuid primary key default gen_random_uuid(),
-  program_id uuid references programs(id) on delete cascade,
-  track text not null,
-  area text not null,
-  status_note text,
-  mitigation text,
-  level text default 'major', -- blocker | critical | major | minor | no-risk
-  next_cp date,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
--- Launch readiness items
-create table launch_items (
-  id uuid primary key default gen_random_uuid(),
-  program_id uuid references programs(id) on delete cascade,
-  domain text not null, -- product | marketing | logistics | commerce
-  label text not null,
-  status text default 'watch', -- go | watch | nogo
-  owner text,
-  note text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
--- Change log (every AI analysis saved here)
-create table change_log (
-  id uuid primary key default gen_random_uuid(),
-  program_id uuid references programs(id) on delete cascade,
-  input_text text not null,
-  input_mode text default 'text', -- text | report | item
-  ai_result jsonb,
-  risk_score integer,
-  risk_level text,
-  launch_impact_days integer,
-  created_at timestamptz default now()
-);
-
--- Enable Row Level Security (when you add auth later)
-alter table programs enable row level security;
-alter table tracks enable row level security;
-alter table risk_items enable row level security;
-alter table launch_items enable row level security;
-alter table change_log enable row level security;
-
--- Temporary open policy for solo use (tighten when adding team)
-create policy "Allow all for now" on programs for all using (true);
-create policy "Allow all for now" on tracks for all using (true);
-create policy "Allow all for now" on risk_items for all using (true);
-create policy "Allow all for now" on launch_items for all using (true);
-create policy "Allow all for now" on change_log for all using (true);
-```
+If you're upgrading an existing project from the legacy single-user schema, run
+`supabase/migrations/001_phase1_program_memberships.sql` first.
 
 ---
 
@@ -228,5 +158,9 @@ Regenerate project docs after changes: `npm run docs:generate`
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API → Secret key (`sb_secret_...`). Server-only — never expose to the browser |
 | `ANTHROPIC_API_KEY` | console.anthropic.com → API Keys |
-| `NEXT_PUBLIC_DEMO_MODE` | Optional — set to `true` for local preview without backend keys |
+| `GEMINI_API_KEY` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — preferred over Anthropic if set |
+| `GEMINI_MODEL` | Optional — overrides the default model fallback chain (tries flash-lite, then 1.5-flash, then 2.0-flash) |
+| `NEXT_PUBLIC_APP_URL` | App URL for OAuth redirects (e.g. `https://your-app.vercel.app` in production) |
+| `NEXT_PUBLIC_DEMO_MODE` | Optional — set to `true` for local preview without Supabase/Anthropic keys |
